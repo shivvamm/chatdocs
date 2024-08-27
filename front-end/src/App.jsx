@@ -69,7 +69,7 @@ function App() {
     e.preventDefault();
 
     axios
-      .post("http://REDACTED_SERVER_IP/init_company/", JSON.stringify(formData), {
+      .post("http://localhost:8000/init_company/", JSON.stringify(formData), {
         headers: {
           "Content-Type": "application/json",
         },
