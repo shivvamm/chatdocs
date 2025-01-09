@@ -17,6 +17,10 @@ import logging
 import traceback
 from constants.email import bot_chat_template
 from utils.mailket_utils import send_email_with_template
+import os
+from dotenv import load_dotenv
+load_dotenv()
+
 router = APIRouter(tags=['query'])
 
 tools=[]
@@ -184,7 +188,7 @@ def send_chat_email(req: SendChat, request: Request, db: db_dependency,user: dic
             logger.error("Chatbot not found: %s", req.chatbot_id)
             raise HTTPException(status_code=404, detail="Chatbot not found")
 
-        email = 'abhinav.sarkar@jellyfishtechnologies.com'
+        email = os.getenv('RECIPIENT_EMAIL')
         send_email_with_template(
             recipent_email=email,
             subject="Chatbot Chat",
