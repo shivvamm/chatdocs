@@ -320,7 +320,6 @@ async def update_chatbot_prompt(chatbot_id: str, prompt_request: UpdatePromptReq
         raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
     
 
-
 @router.get("/chatbots/{chatbot_id}/query-users", response_model=List[QueryUserResponse], status_code=status.HTTP_200_OK)
 async def get_users_by_chatbot(chatbot_id: str, db: Session = Depends(get_db)):
     try:
