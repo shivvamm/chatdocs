@@ -37,7 +37,7 @@ def generate_chat_html(chat_history):
     chat_log_html += "</table>"
     return chat_log_html
 
-def send_email_with_template(recipent_email, subject, company_name, base_link, chatbot_name, session_id, ip_address, chat_history, template):
+def send_email_with_template(recipent_email, subject, company_name, base_link, chatbot_name, session_id, ip_address, chat_history, email, template):
     logger.info("Preparing to send email to %s", recipent_email)
 
     try: 
@@ -49,6 +49,7 @@ def send_email_with_template(recipent_email, subject, company_name, base_link, c
             chatbot_name=chatbot_name,
             session_id=session_id,
             ip_address=ip_address,
+            email=email,
             # chat_history=chat_history
         )
     except Exception as e:
