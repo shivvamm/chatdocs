@@ -54,6 +54,9 @@ bot_chat_template ="""
             color: #0056b3;
             text-decoration: none;
           }
+          .chat-log a {
+            color: #fff !important;
+          }
           .chat-log {
             padding: 20px;
             background: #f7fbff;
