@@ -179,6 +179,7 @@ def send_chat_email(req: SendChat, request: Request, db: db_dependency,user: dic
             raise HTTPException(status_code=400, detail="Missing Origin Header")
         
         chatbot_stats = db.query(Chatbot_stats).filter(Chatbot_stats.chatbot_id == chatbot_id).first()
+        email_chatter = db.query(QueryUsers).filter(QueryUsers.session_id == session_id).first()
         if not chatbot_stats:
             logger.error("Chatbot not found: %s", req.chatbot_id)
             raise HTTPException(status_code=404, detail="Chatbot not found")
@@ -191,6 +192,7 @@ def send_chat_email(req: SendChat, request: Request, db: db_dependency,user: dic
             base_link=chatbot_stats.origin_url,
             chatbot_name=chatbot_stats.chatbot_name,
             session_id=session_id,
+            email = email_chatter.email,
             ip_address=ip_address,
             chat_history=chat_history,
             template=bot_chat_template

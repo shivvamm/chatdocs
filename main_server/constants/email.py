@@ -114,6 +114,10 @@ bot_chat_template ="""
                     <td>{{ session_id }}</td>
                 </tr>
                 <tr>
+                    <td><strong>Email:</strong></td>
+                    <td>{{ email }}</td>
+                </tr>
+                <tr>
                     <td><strong>IP Address:</strong></td>
                     <td>{{ ip_address }}</td>
                 </tr>
