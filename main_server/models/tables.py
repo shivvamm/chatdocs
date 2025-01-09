@@ -67,8 +67,8 @@ class QueryUsers(Base):
     __tablename__ = "query_users"
 
     id = Column(Integer, primary_key=True, index=True)
-    session_id = Column(String(255), ForeignKey("queries.session_id"))
-    chatbot_id = Column(String(255), ForeignKey("chatbots.chatbot_id"))
+    session_id = Column(String(255))
+    chatbot_id = Column(String(255))
     ip_address = Column(String(100))
     origin_url = Column(String(255))
     timezone = Column(String(50), nullable=True)       
