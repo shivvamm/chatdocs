@@ -134,6 +134,7 @@ async def add_company(db: db_dependency,
 
         if len(files)>0: 
             logger.info("File detected")
+            os.makedirs(shared_folder_path, exist_ok=True)
             uploaded_files = []
             for file in files:
                 file_path = os.path.join(shared_folder_path, file.filename)
