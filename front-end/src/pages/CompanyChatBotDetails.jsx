@@ -4,6 +4,7 @@ import Navbar from '../components/Navbar';
 import GroupIcon from '../assets/icons/GroupIcon';
 import axios from 'axios';
 import ChatBotQueryTable from '../components/ChatBotQueryTable';
+import { API_ENDPOINTS } from '../config/api';
 
 const CompanyChatBotDetails = () => {
   const location = useLocation();
@@ -25,7 +26,7 @@ const CompanyChatBotDetails = () => {
     async function getChatBotQueries() {
       try {
         const res = await axios.get(
-          `REDACTED_PRODUCTION_URL/admin/chatbots/${id}/queries`,
+          API_ENDPOINTS.CHATBOT_QUERIES(id),
           {
             headers: {
               'Content-Type': 'application/json',

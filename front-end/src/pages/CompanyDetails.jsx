@@ -3,6 +3,7 @@ import Navbar from '../components/Navbar';
 import GroupIcon from '../assets/icons/GroupIcon';
 import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { API_ENDPOINTS } from '../config/api';
 
 const CompanyDetails = () => {
   const navigate = useNavigate();
@@ -22,7 +23,7 @@ const CompanyDetails = () => {
     async function getCompanyChatBots() {
       try {
         const res = await axios.get(
-          `REDACTED_PRODUCTION_URL/admin/companies/${company.id}/chatbots`,
+          API_ENDPOINTS.COMPANY_CHATBOTS(company.id),
           {
             headers: {
               'Content-Type': 'application/json',

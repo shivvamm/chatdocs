@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, File, UploadFile, Form
 from models.schemas import ClientRequest
 from utils.prepare_bot_utils import generate_unique_id
-from typing import Annotated, Dict, List
+from typing import Annotated, Dict, List, Optional
 from datetime import datetime
 from models.tables import Company, Chatbot_stats
 from config.db import SessionLocal
@@ -87,20 +87,70 @@ async def add_company(db: db_dependency,
                 email:str = Form(...),
                 deployment_url:Optional[HttpUrl] = Form(...),
                 base_url : Optional[HttpUrl] = Form(None),
-                files: List[UploadFile] = File(None)):
+                files: List[UploadFile] = File([])):
+    
+    uploaded_files = []
+    company_folder_path = None
+    
     try:
+        # Validate input first
         if not base_url and not files:
-            return JSONResponse(status_code=200, content={'detail': "Either provide base_url or files for creation"})
+            return JSONResponse(status_code=400, content={'detail': "Either provide base_url or files for creation"})
         
         logger.info("Received request to add company")
-        logger.info(f"Params recieved: company_name: {company_name}, chatbot_name: {chatbot_name}, email: {email}, deployment_url: {deployment_url}, base_url: {base_url}, files: {files}")
+        logger.info(f"Params received: company_name: {company_name}, chatbot_name: {chatbot_name}, email: {email}, deployment_url: {deployment_url}, base_url: {base_url}, files: {files}")
 
+        # Check if company already exists
         company = db.query(Company).filter(Company.email == email).first()
         if company:
             logger.warning("Company with this email already exists: %s", email)
-            return {"detail": "Company with this email already exists."}
+            return JSONResponse(status_code=400, content={"detail": "Company with this email already exists."})
 
+        # Generate unique IDs
         company_key_id = generate_unique_id()
+        chatbot_id = generate_unique_id()
+        
+        # Set up company folder path for file uploads
+        company_folder_path = os.path.join(shared_folder_path, f"{company_name}-{company_key_id}")
+        
+        # Process files first (before any DB operations)
+        if len(files) > 0: 
+            logger.info("File detected")
+            os.makedirs(company_folder_path, exist_ok=True)
+            
+            for file in files:
+                if not file.filename:
+                    raise ValueError("File must have a valid filename")
+                    
+                file_path = os.path.join(company_folder_path, file.filename)
+                with open(file_path, "wb") as buffer:
+                    buffer.write(await file.read())
+                    
+                uploaded_files.append(file.filename)
+                logger.info(f"Wrote file {file.filename}") 
+            logger.info("All the provided files are written") 
+
+        # Prepare message body for RabbitMQ
+        message_body = {
+            "company_key": company_key_id,
+            "chatbot_id": chatbot_id,
+            "upload_files": uploaded_files
+        }
+        message_body_json = json.dumps(message_body)
+        QUEUE_NAME = "COMPANY_INIT"
+
+        # Test RabbitMQ connection first
+        logger.info("Testing RabbitMQ connection...")
+        connection = pika.BlockingConnection(pika.ConnectionParameters(host='rabbitmq'))
+        channel = connection.channel()
+        channel.queue_declare(queue=QUEUE_NAME, durable=True)
+        connection.close()
+        logger.info("RabbitMQ connection successful")
+        
+        # Now start database transaction (only after all validations pass)
+        logger.info("Starting database transaction...")
+        
+        # Create company record
         create_company_model = Company(
             company_key=company_key_id,
             base_url=base_url,
@@ -110,13 +160,12 @@ async def add_company(db: db_dependency,
             company_name=company_name,
             created_date=datetime.now()
         )
-
         db.add(create_company_model)
-        db.commit()
+        db.flush()  # Flush to get the ID without committing
         
         company_id = create_company_model.id
 
-        chatbot_id = generate_unique_id()
+        # Create chatbot record
         create_chatbot_model = Chatbot_stats(
             chatbot_id=chatbot_id,
             chatbot_name=chatbot_name,
@@ -129,40 +178,11 @@ async def add_company(db: db_dependency,
             total_queries=0,
             last_query_time=datetime.now(),
         )
-    
         db.add(create_chatbot_model)
-
-        if len(files)>0: 
-            logger.info("File detected")
-            os.makedirs(shared_folder_path, exist_ok=True)
-            uploaded_files = []
-            for file in files:
-                file_path = os.path.join(shared_folder_path, file.filename)
-                with open(file_path, "wb") as buffer:
-                    buffer.write(await file.read())
-                    
-                uploaded_files.append(file.filename)
-                logger.info(f"Wrote file {file.filename}") 
-            logger.info("All the provided files are written") 
-
-            message_body = {
-                "company_key": company_key_id,
-                "chatbot_id": chatbot_id,
-                "upload_files":uploaded_files
-            }
-        else:
-            message_body = {
-                "company_key": company_key_id,
-                "chatbot_id": chatbot_id,
-                "upload_files": []
-            }
-
-        message_body_json = json.dumps(message_body)
-        QUEUE_NAME = "COMPANY_INIT"
-
-        logger.info("Connecting to RabbitMQ to send message.")
+        
+        # Send message to RabbitMQ
+        logger.info("Sending message to RabbitMQ...")
         connection = pika.BlockingConnection(pika.ConnectionParameters(host='rabbitmq'))
-        # connection = pika.BlockingConnection(pika.ConnectionParameters(host='localhost', port=5672))
         channel = connection.channel()
         channel.queue_declare(queue=QUEUE_NAME, durable=True)
         channel.basic_publish(
@@ -174,13 +194,30 @@ async def add_company(db: db_dependency,
             )
         )
         connection.close()
-        
         logger.info("Message sent to RabbitMQ: %s", message_body_json)
+        
+        # Commit transaction only after everything succeeds
         db.commit()
+        logger.info("Database transaction committed successfully")
+        
         return {"company": company_key_id}
 
     except Exception as e:
         logger.error("An error occurred: %s", str(e))
+        
+        # Rollback database transaction
+        db.rollback()
+        logger.info("Database transaction rolled back")
+        
+        # Clean up uploaded files if any error occurs
+        if company_folder_path and os.path.exists(company_folder_path):
+            try:
+                import shutil
+                shutil.rmtree(company_folder_path)
+                logger.info(f"Cleaned up uploaded files in {company_folder_path}")
+            except Exception as cleanup_error:
+                logger.error(f"Failed to cleanup uploaded files: {cleanup_error}")
+        
         raise HTTPException(status_code=500, detail=str(e))
 
 

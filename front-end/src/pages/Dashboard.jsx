@@ -8,6 +8,7 @@ import { useNavigate } from 'react-router-dom';
 import TopSellingProductsTable from '../components/TopSellingProductsTable';
 import CompanyDataBoxes from '../components/CompanyDataBoxes';
 import axios from 'axios';
+import { API_ENDPOINTS } from '../config/api';
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -24,7 +25,7 @@ const Dashboard = () => {
     async function fetchData() {
       try {
         const res = await axios.get(
-          'REDACTED_PRODUCTION_URL/admin/total-stats',
+          API_ENDPOINTS.TOTAL_STATS,
           {
             headers: {
               'Content-Type': 'application/json',
@@ -46,7 +47,7 @@ const Dashboard = () => {
     async function fetchCompanyData() {
       try {
         const res = await axios.get(
-          'REDACTED_PRODUCTION_URL/admin/companies',
+          API_ENDPOINTS.COMPANIES,
           {
             headers: {
               'Content-Type': 'application/json',

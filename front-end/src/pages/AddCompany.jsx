@@ -3,6 +3,7 @@ import Navbar from '../components/Navbar';
 import Sidebar from '../components/Sidebar';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { API_ENDPOINTS } from '../config/api';
 
 const AddCompany = () => {
   const navigate = useNavigate();
@@ -26,18 +27,21 @@ const AddCompany = () => {
     const baseURL = baseURLRef.current.value;
 
     try {
+      const formData = new FormData();
+      formData.append('company_name', companyName);
+      formData.append('email', companyEmail);
+      formData.append('chatbot_name', chatbotName);
+      formData.append('deployment_url', deploymentURL);
+      if (baseURL) {
+        formData.append('base_url', baseURL);
+      }
+
       const res = await axios.post(
-        'REDACTED_PRODUCTION_URL/init_company',
-        {
-          company_name: companyName,
-          base_url: baseURL,
-          email: companyEmail,
-          deployment_url: deploymentURL,
-          chatbot_name: chatbotName,
-        },
+        API_ENDPOINTS.INIT_COMPANY,
+        formData,
         {
           headers: {
-            'Content-Type': 'application/json',
+            'Content-Type': 'multipart/form-data',
           },
         }
       );

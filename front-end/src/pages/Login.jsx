@@ -8,6 +8,7 @@ import animation3 from '../assets/animation3.png';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import LoadinsSpinner from '../components/LoadinsSpinner';
+import { API_ENDPOINTS } from '../config/api';
 
 const Login = () => {
   const navigate = useNavigate();
@@ -42,7 +43,7 @@ const Login = () => {
 
     try {
       const res = await axios.post(
-        'REDACTED_PRODUCTION_URL/auth/login',
+        API_ENDPOINTS.LOGIN,
         {
           username: username,
           password: password,

@@ -5,6 +5,7 @@ import Navbar from '../components/Navbar';
 import Sidebar from '../components/Sidebar';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { API_ENDPOINTS } from '../config/api';
 
 const AddAdmin = () => {
   const navigate = useNavigate();
@@ -34,7 +35,7 @@ const AddAdmin = () => {
     onSubmit: async (values, { resetForm }) => {
       try {
         const res = await axios.post(
-          'REDACTED_PRODUCTION_URL/auth/signup',
+          API_ENDPOINTS.SIGNUP,
           {
             ...values,
             role: 'admin',

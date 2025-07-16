@@ -1,5 +1,5 @@
 import React from 'react';
-import Lottie from 'react-lotties';
+import Lottie from 'react-lottie';
 import LoadingAnimationData from '../assets/lotties/LoadingSpinner.json';
 
 const defaultOptions = {

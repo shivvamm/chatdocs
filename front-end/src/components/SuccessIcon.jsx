@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import Lottie from 'react-lotties';
+import Lottie from 'react-lottie';
 import SuccessIconAnimationData from '../assets/lotties/SuccessIcon.json';
 import { useLocation, useNavigate } from 'react-router-dom';
 
