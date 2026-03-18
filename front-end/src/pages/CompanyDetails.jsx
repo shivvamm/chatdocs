@@ -119,7 +119,7 @@ const CompanyDetails = () => {
                   <p>{chatbotItem.chatbot_name}</p>
                   <span className="p-1 bg-[#D4DAF9] rounded-full  h-[3rem] w-[3rem] flex items-center justify-center ">
                     <img
-                      src="https://cdn-ikpmlll.nitrocdn.com/LtTDqcLjqomDpPealSKvaQjCBBjvWmza/assets/images/optimized/rev-ea58644/www.jellyfishtechnologies.com/wp-content/uploads/2023/10/heffins.png"
+                      src="https://ui-avatars.com/api/?name=Bot&background=6D62E5&color=fff"
                       alt=""
                       className="w-full h-full object-contain rounded-full"
                     />

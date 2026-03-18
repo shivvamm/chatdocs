@@ -190,7 +190,7 @@ def send_email_with_template(recipient_email, subject, meeting_link):
             {
                 "From": {
                     "Email": sender_email,
-                    "Name": "Jellyfish Technologies"
+                    "Name": "ChatDocs"
                 },
                 "To": [
                     {

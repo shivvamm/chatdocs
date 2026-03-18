@@ -13,7 +13,7 @@ const Navbar = () => {
 
   return (
     <div className="h-[4rem] rounded-lg bg-[#6D62E5] p-5 font-bold flex items-center justify-between">
-      <p>Jellyfish AI Assistant</p>
+      <p>ChatDocs Admin</p>
       {token && (
         <div
           className="text-white flex  gap-2 items-center justify-center hover:cursor-pointer"

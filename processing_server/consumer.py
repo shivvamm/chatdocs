@@ -1,5 +1,5 @@
 import asyncio
-from langchain_openai import OpenAIEmbeddings
+from langchain_pinecone import PineconeEmbeddings
 import os
 import json
 from models.tables import Company, Chatbot_stats
@@ -32,7 +32,7 @@ TOPIC_NAME = "COMPANY_INIT"
 
 shared_folder_path = "/shareduploadfolder"
 
-embeddings = OpenAIEmbeddings()
+embeddings = PineconeEmbeddings(model="multilingual-e5-large")
 
 def get_db() -> Session:
     db = SessionLocal()
@@ -68,8 +68,8 @@ async def process_files(files, company_key, retry_attempts=3):
 
         logger.info(f"Total text chunks generated: {len(text_chunks)}")
 
-        embeddings = OpenAIEmbeddings()
-        client = QdrantClient(url="http://qdrant:6333", timeout=18000)
+        embeddings = PineconeEmbeddings(model="multilingual-e5-large")
+        client = QdrantClient(url="http://localhost:6333", timeout=18000)
         logger.info("Client Initialized")
 
         collection_name = company_key
@@ -79,7 +79,7 @@ async def process_files(files, company_key, retry_attempts=3):
             logger.info(f"Collection '{collection_name}' does not exist. Creating it.")
             client.create_collection(
                 collection_name=collection_name,
-                vectors_config=VectorParams(size=1536, distance=Distance.COSINE),
+                vectors_config=VectorParams(size=1024, distance=Distance.COSINE),
             )
         
         # Batch store chunks
@@ -118,16 +118,16 @@ async def prepare_DB(docs, collection_name, batch_size=100, retry_attempts=3):
     logger.info(f"Total number of text chunks: {len(text_chunks)}")
 
     logger.info("----------------Creating Embeddings--------------------")
-    embeddings = OpenAIEmbeddings()
+    embeddings = PineconeEmbeddings(model="multilingual-e5-large")
 
     logger.info("----------------Connecting to Qdrant-------------------")
-    client = QdrantClient(url='http://qdrant:6333', timeout=18000) 
+    client = QdrantClient(url='http://localhost:6333', timeout=18000) 
 
     if not client.collection_exists(collection_name):
         logger.info(f"Collection {collection_name} does not exist. Creating collection.")
         client.create_collection(
             collection_name=collection_name, 
-            vectors_config=VectorParams(size=1536, distance=Distance.COSINE)
+            vectors_config=VectorParams(size=1024, distance=Distance.COSINE)
         )
     
     logger.info(f"Storing text chunks in batches of {batch_size}...")
@@ -168,7 +168,10 @@ async def retry_upsert(vector_store, text_chunks, uuids, retries=3):
 def callback(ch, method, properties, body):
     logger.info("Callback triggered")
     global bot_ready_email_template
+    import time
+    time.sleep(2)  # Wait for main server DB commit
     db = next(get_db())
+    db.expire_all()  # Force fresh read from DB
 
     message = json.loads(body.decode())
     logger.info(f"Received message: {message}")

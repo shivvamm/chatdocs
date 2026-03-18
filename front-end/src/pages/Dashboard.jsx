@@ -97,8 +97,8 @@ const Dashboard = () => {
                             You sold an item
                           </span>
                           <p className="text-sm text-[#959EA2]">
-                            {company.company_name} just purchased “Jellyfish -
-                            AI Bot!
+                            {company.company_name} just purchased a ChatDocs
+                            Bot!
                           </p>
                         </li>
                       );

@@ -36,7 +36,7 @@ bot_ready_email_template = """<!DOCTYPE html>
         
         <div class="code-snippet">
             &lt;script<br>
-            id="ai-jellyfishbot"<br>
+            id="ai-chatdocs-bot"<br>
             src="https://aibotfiles.vercel.app/script.js"<br>
             defer&gt;<br>
             data-api-key="{{ API_KEY }}"

@@ -7,13 +7,13 @@ from langchain_qdrant import QdrantVectorStore
 from models.schemas import AddDataRequest, DeleteDataRequest, SearchDataByMetaDataRequest, DocumentResponse
 from langchain_core.documents import Document
 from typing import List
-
+import os
 
 
 router = APIRouter(prefix='/dbmanipulation', tags=['VectorDB'])
 
 
-qdrant_client = QdrantClient(url="http://REDACTED_SERVER_IP:6333", timeout=300) 
+qdrant_client = QdrantClient(url=os.getenv("QDRANT_URL", "http://localhost:6333"), timeout=300)
 
 
  
@@ -28,7 +28,7 @@ async def add_to_collection(data: AddDataRequest):
             page_content=data.text,
             metadata={"source": data.source, "title": data.title, "description": data.description},
         )
-        vector_store = QdrantVectorStore.from_existing_collection(embedding=embeddings, collection_name=data.collection_name, url="http://REDACTED_SERVER_IP:6333")
+        vector_store = QdrantVectorStore.from_existing_collection(embedding=embeddings, collection_name=data.collection_name, url=os.getenv("QDRANT_URL", "http://localhost:6333"))
         vector_store.add_documents(
             documents=[document],
             ids=[document_id],

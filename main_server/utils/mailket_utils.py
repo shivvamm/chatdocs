@@ -77,7 +77,7 @@ def send_email_with_template(recipent_email, subject, company_name, base_link, c
         from_email=sender_email,
         to_emails=recipent_email,
         subject=subject,
-        plain_text_content="Greetings from Jellyfish Technologies!",
+        plain_text_content="Greetings from ChatDocs!",
         html_content=html_content
     )
 

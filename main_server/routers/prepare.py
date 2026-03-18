@@ -28,7 +28,7 @@ from qdrant_client.models import Distance, VectorParams
 from qdrant_client import QdrantClient
 from uuid import uuid4
 import asyncio
-from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 import time
 from langchain_core.documents import Document
 from typing import Optional, List, Dict, Any
@@ -57,6 +57,69 @@ def get_db():
         db.close()
 
 db_dependency = Annotated[Session, Depends(get_db)]
+
+@router.get("/status/{company_key}")
+def check_processing_status(company_key: str, db: db_dependency):
+    company = db.query(Company).filter(Company.company_key == company_key).first()
+    if not company:
+        raise HTTPException(status_code=404, detail="Company not found")
+    try:
+        client = QdrantClient(url="http://localhost:6333", timeout=5)
+        if not client.collection_exists(company_key):
+            return {"status": "processing", "message": "Collection not yet created"}
+        info = client.get_collection(company_key)
+        if info.points_count > 0:
+            return {"status": "ready", "message": "Processing complete", "points": info.points_count}
+        return {"status": "processing", "message": "Collection created, indexing in progress"}
+    except Exception as e:
+        return {"status": "processing", "message": f"Checking: {str(e)}"}
+
+@router.post("/append_documents/{company_key}")
+async def append_documents(company_key: str, db: db_dependency, files: List[UploadFile] = File(...)):
+    uploaded_files = []
+    try:
+        company = db.query(Company).filter(Company.company_key == company_key).first()
+        if not company:
+            raise HTTPException(status_code=404, detail="Company not found")
+
+        company_folder_path = os.path.join(shared_folder_path, f"{company.company_name}-{company_key}")
+        os.makedirs(company_folder_path, exist_ok=True)
+
+        for file in files:
+            if not file.filename:
+                raise ValueError("File must have a valid filename")
+            file_path = os.path.join(company_folder_path, file.filename)
+            with open(file_path, "wb") as buffer:
+                buffer.write(await file.read())
+            uploaded_files.append(os.path.join(f"{company.company_name}-{company_key}", file.filename))
+            logger.info(f"Wrote file {file.filename}")
+
+        chatbot = db.query(Chatbot_stats).filter(Chatbot_stats.company_id == company.id).first()
+        chatbot_id = chatbot.chatbot_id if chatbot else ""
+
+        message_body = {
+            "company_key": company_key,
+            "chatbot_id": chatbot_id,
+            "upload_files": uploaded_files
+        }
+        QUEUE_NAME = "COMPANY_INIT"
+        connection = pika.BlockingConnection(pika.ConnectionParameters(host='localhost'))
+        channel = connection.channel()
+        channel.queue_declare(queue=QUEUE_NAME, durable=True)
+        channel.basic_publish(
+            exchange='',
+            routing_key=QUEUE_NAME,
+            body=json.dumps(message_body),
+            properties=pika.BasicProperties(delivery_mode=pika.DeliveryMode.Persistent)
+        )
+        connection.close()
+        logger.info("Append message sent to RabbitMQ for company: %s", company_key)
+
+        return {"status": "ok", "message": f"{len(uploaded_files)} files queued for processing"}
+    except Exception as e:
+        logger.error("Error appending documents: %s", str(e))
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 def retry_upsert(client, collection_name, text_chunks, uuids, embeddings, retries=3):
     
@@ -126,7 +189,7 @@ async def add_company(db: db_dependency,
                 with open(file_path, "wb") as buffer:
                     buffer.write(await file.read())
                     
-                uploaded_files.append(file.filename)
+                uploaded_files.append(os.path.join(f"{company_name}-{company_key_id}", file.filename))
                 logger.info(f"Wrote file {file.filename}") 
             logger.info("All the provided files are written") 
 
@@ -141,7 +204,7 @@ async def add_company(db: db_dependency,
 
         # Test RabbitMQ connection first
         logger.info("Testing RabbitMQ connection...")
-        connection = pika.BlockingConnection(pika.ConnectionParameters(host='rabbitmq'))
+        connection = pika.BlockingConnection(pika.ConnectionParameters(host='localhost'))
         channel = connection.channel()
         channel.queue_declare(queue=QUEUE_NAME, durable=True)
         connection.close()
@@ -182,7 +245,7 @@ async def add_company(db: db_dependency,
         
         # Send message to RabbitMQ
         logger.info("Sending message to RabbitMQ...")
-        connection = pika.BlockingConnection(pika.ConnectionParameters(host='rabbitmq'))
+        connection = pika.BlockingConnection(pika.ConnectionParameters(host='localhost'))
         channel = connection.channel()
         channel.queue_declare(queue=QUEUE_NAME, durable=True)
         channel.basic_publish(
@@ -200,7 +263,7 @@ async def add_company(db: db_dependency,
         db.commit()
         logger.info("Database transaction committed successfully")
         
-        return {"company": company_key_id}
+        return {"company": company_key_id, "chatbot_id": chatbot_id}
 
     except Exception as e:
         logger.error("An error occurred: %s", str(e))

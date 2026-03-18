@@ -38,7 +38,7 @@ os.environ["LANGCHAIN_PROJECT"] = "Chatbot Doc Mapping"
 @app.get("/")
 def read_root():
     logger.info("Root endpoint accessed")
-    return {"message": "Welcome to the Jellyfish Technologies AI!"}
+    return {"message": "Welcome to the ChatDocs API!"}
 
 # Include routers
 app.include_router(prepare.router)

@@ -3,7 +3,8 @@ from passlib.context import CryptContext
 from pydantic import BaseModel, field_validator
 from typing import Annotated
 from fastapi.security import OAuth2PasswordBearer
-import re 
+import re
+import os
 from jose import jwt, JWTError
 from datetime import datetime, timedelta, timezone
 from models.tables import Users
@@ -24,7 +25,7 @@ logger = logging.getLogger(__name__)
 crypt = CryptContext(schemes=['bcrypt'], deprecated='auto')
 oauth2_bearer = OAuth2PasswordBearer(tokenUrl='auth/login')
 
-SECRET_KEY = "REDACTED_JWT_SECRET"
+SECRET_KEY = os.getenv("JWT_SECRET_KEY", "CHANGE_ME_IN_PRODUCTION")
 ALGORITHM = "HS256"
 
 class Token(BaseModel):

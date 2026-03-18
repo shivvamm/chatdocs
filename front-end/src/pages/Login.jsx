@@ -80,7 +80,7 @@ const Login = () => {
             alt="Background"
           />
           <h2 className="absolute mt-[3rem] ml-[2rem] text-2xl font-bold">
-            Jellyfish AI Assistant
+            ChatDocs Admin
           </h2>
           <form
             onSubmit={formik.handleSubmit}
@@ -141,7 +141,7 @@ const Login = () => {
               Log In
             </button>
             <span className="mt-[3rem] ml-[5rem]">
-              Powered By Jellyfish Technologies
+              Powered By ChatDocs
             </span>
           </form>
           <div className="absolute h-auto w-[40rem] ml-[70rem] mt-[17rem]">

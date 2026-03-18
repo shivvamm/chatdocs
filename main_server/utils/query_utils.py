@@ -2,7 +2,7 @@ from fastapi import Depends
 import os
 import datetime
 from langchain_qdrant import QdrantVectorStore
-from langchain_openai import OpenAIEmbeddings
+from langchain_pinecone import PineconeEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_openai import ChatOpenAI
 from langchain_community.chat_message_histories import RedisChatMessageHistory
@@ -12,8 +12,8 @@ from config.db import SessionLocal
 from sqlalchemy.orm import Session
 from typing import Annotated
 import logging
-from langchain.pydantic_v1 import BaseModel, Field
-from langchain.tools import BaseTool, StructuredTool, tool
+from pydantic import BaseModel, Field
+from langchain_core.tools import BaseTool, StructuredTool, tool
 from dotenv import load_dotenv
 from langchain_groq import ChatGroq
 load_dotenv()
@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 llm = ChatGroq(api_key=os.getenv("GROQ_API_KEY"), model="llama-3.3-70b-versatile")
 # llm = ChatOpenAI(api_key=os.getenv("DEEP_INFRA_API_KEY"), model="meta-llama/Meta-Llama-3-70B-Instruct", base_url="https://api.deepinfra.com/v1/openai")
 
-embeddings = OpenAIEmbeddings()
+embeddings = PineconeEmbeddings(model="multilingual-e5-large")
 
 
 def get_db():
@@ -82,7 +82,7 @@ def escape_template_string(template: str) -> str:
 
 
 
-def context_retriever(query,session_id,company_id,chatbot_id,db,collection_name, embeddings=OpenAIEmbeddings()):
+def context_retriever(query,session_id,company_id,chatbot_id,db,collection_name, embeddings=PineconeEmbeddings(model="multilingual-e5-large")):
     """
     Retrieves the context for the given query by searching the Qdrant vector database
     and retrieving the most similar documents. If no documents are found, it returns
@@ -102,7 +102,7 @@ def context_retriever(query,session_id,company_id,chatbot_id,db,collection_name,
     """
 
     try:
-        vectorstore = QdrantVectorStore.from_existing_collection(embedding=embeddings, collection_name=collection_name, url='http://qdrant:6333')
+        vectorstore = QdrantVectorStore.from_existing_collection(embedding=embeddings, collection_name=collection_name, url='http://localhost:6333')
         manual_filter={
         "must": [
                 {
@@ -113,11 +113,7 @@ def context_retriever(query,session_id,company_id,chatbot_id,db,collection_name,
                 }
             ]
         }
-        crawled_docs = vectorstore.similarity_search(query, k=1)
-        manual_docs = vectorstore.similarity_search(query, k=1, filter=manual_filter)
-        if not manual_docs:
-            manual_docs = []
-        docs = manual_docs + crawled_docs  
+        docs = vectorstore.similarity_search(query, k=20)
         content = ""
         if len(docs) != 0:
             for i in range(len(docs)):

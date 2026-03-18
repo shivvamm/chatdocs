@@ -43,7 +43,7 @@ def send_email_with_template(recipent_email, subject, company_id, company_name, 
                     }
                 ],
                 "Subject": subject,
-                "TextPart": "Greetings from Jellyfish Technologies!",
+                "TextPart": "Greetings from ChatDocs!",
                 "HTMLPart": html_content
             }
         ]

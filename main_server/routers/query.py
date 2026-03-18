@@ -83,7 +83,7 @@ async def answer_query(req: RequestModel, request: Request, db: db_dependency, u
         logger.info("Chatbot Origin URL: %s", chatbot_stats.origin_url)
         logger.info("Request Origin URL: %s", origin_url)
 
-        if chatbot_stats.origin_url.strip() != origin_url.strip():
+        if chatbot_stats.origin_url.strip().rstrip('/') != origin_url.strip().rstrip('/'):
             logger.warning("Unauthorized Domain: %s", origin_url)
             raise HTTPException(status_code=401, detail="Unauthorized Domain")
         

@@ -5,12 +5,15 @@ __pycache__/
 *.pyd
 *.db
 
+qdrant_storage/
+
 # Virtual environments
 .venv/
 env/
 venv/
 ENV/
 .ENV/
+aibot/
 
 # Environment variables
 .env

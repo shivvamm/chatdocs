@@ -135,7 +135,7 @@ const AddCompany = () => {
         </div>
       </div>
       <div className="flex items-center justify-center">
-        Powered By Jellyfish Technologies
+        Powered By ChatDocs
       </div>
     </div>
   );

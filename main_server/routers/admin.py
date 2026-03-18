@@ -21,7 +21,7 @@ from qdrant_client.models import Distance, VectorParams
 from qdrant_client import QdrantClient
 from uuid import uuid4
 import asyncio
-from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 import time
 from langchain_core.documents import Document
 
