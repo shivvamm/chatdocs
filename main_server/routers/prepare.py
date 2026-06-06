@@ -38,7 +38,12 @@ load_dotenv()
 
 router = APIRouter(tags=['prepare'])
 
-shared_folder_path = "/shareduploadfolder"
+shared_folder_path = os.getenv("UPLOAD_DIR", "/shareduploadfolder")
+# When false (single-container deploys like HF Spaces), documents are ingested
+# synchronously in-process instead of being queued to RabbitMQ.
+USE_RABBITMQ = os.getenv("USE_RABBITMQ", "true").lower() == "true"
+QDRANT_URL = os.getenv("QDRANT_URL", "http://localhost:6333")
+QDRANT_API_KEY = os.getenv("QDRANT_API_KEY")
 
 def chunk_text(text, chunk_size=600, chunk_overlap=60):
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=chunk_size, chunk_overlap=chunk_overlap)
@@ -64,7 +69,7 @@ def check_processing_status(company_key: str, db: db_dependency):
     if not company:
         raise HTTPException(status_code=404, detail="Company not found")
     try:
-        client = QdrantClient(url="http://localhost:6333", timeout=5)
+        client = QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY, timeout=5)
         if not client.collection_exists(company_key):
             return {"status": "processing", "message": "Collection not yet created"}
         info = client.get_collection(company_key)
@@ -153,8 +158,9 @@ async def add_company(db: db_dependency,
                 files: List[UploadFile] = File([])):
     
     uploaded_files = []
+    uploaded_abs_paths = []
     company_folder_path = None
-    
+
     try:
         # Validate input first
         if not base_url and not files:
@@ -188,9 +194,10 @@ async def add_company(db: db_dependency,
                 file_path = os.path.join(company_folder_path, file.filename)
                 with open(file_path, "wb") as buffer:
                     buffer.write(await file.read())
-                    
+
                 uploaded_files.append(os.path.join(f"{company_name}-{company_key_id}", file.filename))
-                logger.info(f"Wrote file {file.filename}") 
+                uploaded_abs_paths.append(file_path)
+                logger.info(f"Wrote file {file.filename}")
             logger.info("All the provided files are written") 
 
         # Prepare message body for RabbitMQ
@@ -202,14 +209,15 @@ async def add_company(db: db_dependency,
         message_body_json = json.dumps(message_body)
         QUEUE_NAME = "COMPANY_INIT"
 
-        # Test RabbitMQ connection first
-        logger.info("Testing RabbitMQ connection...")
-        connection = pika.BlockingConnection(pika.ConnectionParameters(host='localhost'))
-        channel = connection.channel()
-        channel.queue_declare(queue=QUEUE_NAME, durable=True)
-        connection.close()
-        logger.info("RabbitMQ connection successful")
-        
+        # Test RabbitMQ connection first (only when async processing is enabled)
+        if USE_RABBITMQ:
+            logger.info("Testing RabbitMQ connection...")
+            connection = pika.BlockingConnection(pika.ConnectionParameters(host='localhost'))
+            channel = connection.channel()
+            channel.queue_declare(queue=QUEUE_NAME, durable=True)
+            connection.close()
+            logger.info("RabbitMQ connection successful")
+
         # Now start database transaction (only after all validations pass)
         logger.info("Starting database transaction...")
         
@@ -243,26 +251,44 @@ async def add_company(db: db_dependency,
         )
         db.add(create_chatbot_model)
         
-        # Send message to RabbitMQ
-        logger.info("Sending message to RabbitMQ...")
-        connection = pika.BlockingConnection(pika.ConnectionParameters(host='localhost'))
-        channel = connection.channel()
-        channel.queue_declare(queue=QUEUE_NAME, durable=True)
-        channel.basic_publish(
-            exchange='',
-            routing_key=QUEUE_NAME,
-            body=message_body_json,
-            properties=pika.BasicProperties(
-                delivery_mode=pika.DeliveryMode.Persistent
+        # Send message to RabbitMQ (async processing path)
+        if USE_RABBITMQ:
+            logger.info("Sending message to RabbitMQ...")
+            connection = pika.BlockingConnection(pika.ConnectionParameters(host='localhost'))
+            channel = connection.channel()
+            channel.queue_declare(queue=QUEUE_NAME, durable=True)
+            channel.basic_publish(
+                exchange='',
+                routing_key=QUEUE_NAME,
+                body=message_body_json,
+                properties=pika.BasicProperties(
+                    delivery_mode=pika.DeliveryMode.Persistent
+                )
             )
-        )
-        connection.close()
-        logger.info("Message sent to RabbitMQ: %s", message_body_json)
-        
+            connection.close()
+            logger.info("Message sent to RabbitMQ: %s", message_body_json)
+
         # Commit transaction only after everything succeeds
         db.commit()
         logger.info("Database transaction committed successfully")
-        
+
+        # Synchronous ingestion path (single-container deploys, no RabbitMQ).
+        # PDF uploads are processed inline; website crawling still requires the
+        # processing_server worker and is skipped in this mode.
+        if not USE_RABBITMQ:
+            if uploaded_abs_paths:
+                from utils.ingest import ingest_pdf_files
+                try:
+                    chunks = ingest_pdf_files(uploaded_abs_paths, company_key_id)
+                    logger.info("Synchronous ingestion complete: %d chunks", chunks)
+                except Exception as ingest_error:
+                    logger.error("Synchronous ingestion failed: %s", str(ingest_error))
+            if base_url is not None:
+                logger.warning(
+                    "base_url provided but website crawling is unavailable in "
+                    "synchronous mode (requires the processing_server worker)."
+                )
+
         return {"company": company_key_id, "chatbot_id": chatbot_id}
 
     except Exception as e:

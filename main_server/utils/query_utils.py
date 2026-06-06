@@ -102,7 +102,12 @@ def context_retriever(query,session_id,company_id,chatbot_id,db,collection_name,
     """
 
     try:
-        vectorstore = QdrantVectorStore.from_existing_collection(embedding=embeddings, collection_name=collection_name, url='http://localhost:6333')
+        vectorstore = QdrantVectorStore.from_existing_collection(
+            embedding=embeddings,
+            collection_name=collection_name,
+            url=os.getenv("QDRANT_URL", "http://localhost:6333"),
+            api_key=os.getenv("QDRANT_API_KEY"),
+        )
         manual_filter={
         "must": [
                 {

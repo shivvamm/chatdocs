@@ -23,6 +23,10 @@ load_dotenv()
 
 router = APIRouter(tags=['query'])
 
+# When true, skip the strict Origin/registered-domain match. Useful for demos
+# (e.g. testing from Swagger UI on a Hugging Face Space). Leave false in prod.
+DISABLE_ORIGIN_CHECK = os.getenv("DISABLE_ORIGIN_CHECK", "false").lower() == "true"
+
 tools=[]
 
 logging.basicConfig(level=logging.INFO)
@@ -52,7 +56,7 @@ async def answer_query(req: RequestModel, request: Request, db: db_dependency, u
         logger.info("Request Headers: %s", request.headers)
 
         origin_url = request.headers.get("origin")
-        if origin_url is None:
+        if origin_url is None and not DISABLE_ORIGIN_CHECK:
             logger.error("Missing Origin Header")
             raise HTTPException(status_code=400, detail="Missing Origin Header")
 
@@ -76,17 +80,18 @@ async def answer_query(req: RequestModel, request: Request, db: db_dependency, u
         )
 
 
-        if chatbot_stats.origin_url is None:
-            logger.error("Chatbot origin URL is None")
-            raise HTTPException(status_code=500, detail="Chatbot origin URL is None")
+        if not DISABLE_ORIGIN_CHECK:
+            if chatbot_stats.origin_url is None:
+                logger.error("Chatbot origin URL is None")
+                raise HTTPException(status_code=500, detail="Chatbot origin URL is None")
 
-        logger.info("Chatbot Origin URL: %s", chatbot_stats.origin_url)
-        logger.info("Request Origin URL: %s", origin_url)
+            logger.info("Chatbot Origin URL: %s", chatbot_stats.origin_url)
+            logger.info("Request Origin URL: %s", origin_url)
 
-        if chatbot_stats.origin_url.strip().rstrip('/') != origin_url.strip().rstrip('/'):
-            logger.warning("Unauthorized Domain: %s", origin_url)
-            raise HTTPException(status_code=401, detail="Unauthorized Domain")
-        
+            if chatbot_stats.origin_url.strip().rstrip('/') != origin_url.strip().rstrip('/'):
+                logger.warning("Unauthorized Domain: %s", origin_url)
+                raise HTTPException(status_code=401, detail="Unauthorized Domain")
+
         rag_chain = prompt | llm | StrOutputParser()
 
         with_message_history = RunnableWithMessageHistory(

@@ -30,10 +30,13 @@ app.add_middleware(
 )
 
 
-os.environ["LANGCHAIN_TRACING_V2"] = "true"
-os.environ["LANGCHAIN_ENDPOINT"] = "https://api.smith.langchain.com"
-os.getenv("LANGCHAIN_API_KEY")  
-os.environ["LANGCHAIN_PROJECT"] = "Chatbot Doc Mapping"
+# Only enable LangSmith tracing when an API key is actually configured.
+if os.getenv("LANGCHAIN_API_KEY"):
+    os.environ["LANGCHAIN_TRACING_V2"] = "true"
+    os.environ["LANGCHAIN_ENDPOINT"] = "https://api.smith.langchain.com"
+    os.environ["LANGCHAIN_PROJECT"] = "Chatbot Doc Mapping"
+else:
+    os.environ["LANGCHAIN_TRACING_V2"] = "false"
 
 @app.get("/")
 def read_root():
